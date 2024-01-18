@@ -246,7 +246,7 @@ void Surface::PreUpdate(const sim::UpdateInfo &_info,
     double deltaZ = (this->dataPtr->fluidLevel + dz) - kDdz;
     // Enforce only upward buoy force
     deltaZ = std::max(deltaZ, 0.0);
-    deltaZ = std::min(deltaZ, this->dataPtr->hullRadius);
+    deltaZ = std::min(deltaZ, 2 * this->dataPtr->hullRadius);
 
     const float kBuoyForce =
       this->CircleSegment(this->dataPtr->hullRadius, deltaZ) *

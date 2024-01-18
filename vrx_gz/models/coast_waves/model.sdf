@@ -24,7 +24,20 @@
             </parameters>
           </shader>
           <wavefield>
-            <topic>/vrx/wavefield/parameters</topic>
+           <topic>/vrx/wavefield/parameters</topic>
+           <wave>
+       	      <model>PMS</model>
+       	      <cell_count>6000 6000</cell_count>
+              <period>10</period>
+              <number>2</number>
+              <scale>1.5</scale>
+              <gain>5.0</gain>
+              <direction>0.0</direction>
+              <angle>1.57</angle>
+              <tau>0.6</tau>
+              <amplitude>5.0</amplitude>
+              <steepness>0.5</steepness>
+           </wave>
           </wavefield>
         </plugin>
         <visibility_flags>8</visibility_flags>
