@@ -346,13 +346,7 @@
       <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/sydney_regatta</uri>
     </include>
 
-    <include>
-      <name>Coast Waves</name>
-      <pose>0 0 0 0 0 0</pose>
-      <uri>coast_waves</uri>
-    </include>
-
-    <include>
+   <!-- <include>
       <name>mb_marker_buoy_red</name>
       <pose>-528 191 0 0 0 0</pose>
       <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/mb_marker_buoy_red</uri>
@@ -512,7 +506,7 @@
       </plugin>
     </include>
 
-    <!-- The posts for securing the WAM-V -->
+    <!-- The posts for securing the WAM-V 
     <include>
       <name>post_0</name>
       <pose>-535.916809 154.362869 0.675884 -0.17182 0.030464 -0.005286</pose>
@@ -527,15 +521,15 @@
       <name>post_2</name>
       <pose>-544.832825 156.671951 0.499025 -0.162625 0 0 </pose>
       <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/post</uri>
-    </include>
+    </include>-->
 
-    <!-- Antenna for communication with the WAM-V -->
+    <!-- Antenna for communication with the WAM-V 
     <include>
       <pose>-531.063721 147.668579 1.59471 -0.068142 0 -0.1</pose>
       <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/antenna</uri>
-    </include>
+    </include>-->
 
-    <!-- ground station tents -->
+    <!-- ground station tents 
     <include>
       <name>ground_station_0</name>
       <pose>-540.796448 146.493744 1.671421 -0.00834 0.01824 1.301726</pose>
@@ -550,9 +544,9 @@
       <name>ground_station_2</name>
       <pose>-534.550537 144.910400 1.720474 -0.004994 0.020798 1.301492</pose>
       <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/ground_station</uri>
-    </include>
+    </include>-->
 
-    <!-- The projectile for the ball shooter -->
+    <!-- The projectile for the ball shooter 
     <include>
       <name>blue_projectile</name>
       <pose>-545 60 0.03 0 0 0</pose>
@@ -576,6 +570,12 @@
           <topic>/vrx/wavefield/parameters</topic>
         </wavefield>
       </plugin>
+    </include>-->
+    
+    <include>
+      <name>Coast Waves</name>
+      <pose>0 0 0 0 0 0</pose>
+      <uri>coast_waves</uri>
     </include>
 
     <!-- Load the plugin for the wind --> 
@@ -600,7 +600,7 @@
       <topic_wind_direction>/vrx/debug/wind/direction</topic_wind_direction>
      </plugin>
 
-    <!-- The wave field -->
+    <!-- The wave field 
     <plugin filename="libPublisherPlugin.so" name="vrx::PublisherPlugin">
       <message type="gz.msgs.Param" topic="/vrx/wavefield/parameters"
                every="2.0">
@@ -615,7 +615,7 @@
           key: "gain"
           value {
             type: DOUBLE
-            double_value: 5
+            double_value: 0.8
           }
         }
         params {
@@ -630,6 +630,90 @@
           value {
             type: DOUBLE
             double_value: 5
+          }
+        }
+      </message>
+    </plugin>-->
+    
+    <!--The wave field-->
+    <plugin filename="libPublisherPlugin.so" name="vrx::PublisherPlugin">
+      <message type="gz.msgs.Param" topic="/vrx/wavefield/parameters"
+               every="1.0">
+        params {
+          key: "model"
+          value {
+            type: STRING
+            string_value: "CWR"
+          }
+        }
+        params {
+          key: "period"
+          value {
+            type: DOUBLE
+            double_value: 5.0
+          }
+        }
+        params {
+          key: "number"
+          value {
+            type: INT32
+            int_value: 2
+          }
+        }
+        params {
+          key: "scale"
+          value {
+            type: DOUBLE
+            double_value: 2.0
+          }
+        }
+        params {
+          key: "gain"
+          value {
+            type: DOUBLE
+            double_value: 0.0
+          }
+        }
+        params {
+          key: "direction"
+          value {
+            type: DOUBLE
+            double_value: 0.5
+          }
+        }
+        params {
+          key: "angle"
+          value {
+            type: DOUBLE
+            double_value: 0.4
+          }
+        }
+        params {
+          key: "tau"
+          value {
+            type: DOUBLE
+            double_value: 0.6
+          }
+        }
+        params {
+          key: "amplitude"
+          value {
+            type: DOUBLE
+            double_value: 0.5
+          }
+        }
+        params {
+          key: "steepness"
+          value {
+            type: DOUBLE
+            double_value: 0.3
+          }
+        }
+        params {
+          key: "phase"
+          value {
+            type: DOUBLE
+            double_value: 0.2
           }
         }
       </message>

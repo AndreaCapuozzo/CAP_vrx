@@ -349,6 +349,26 @@
       <pose> 0 0 0.2 0 0 0 </pose>
       <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/sydney_regatta</uri>
     </include>
+    
+    <model name="launch_pad">
+      <pose>-580 200 1.2 0 0 0</pose>
+      <link name="body">
+        <collision name="collision1">
+          <geometry>
+            <box>
+              <size>1.5 1.5 1.5</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual1">
+          <geometry>
+            <box>
+              <size>1.5 1.5 1.5</size>
+            </box>
+          </geometry>
+        </visual>
+      </link>
+    </model>
 
     <include>
       <name>Coast Waves</name>
@@ -378,40 +398,89 @@
       <topic_wind_direction>/vrx/debug/wind/direction</topic_wind_direction>
      </plugin>
         
-    <!--The wave field
+    <!--The wave field-->
     <plugin filename="libPublisherPlugin.so" name="vrx::PublisherPlugin">
       <message type="gz.msgs.Param" topic="/vrx/wavefield/parameters"
-               every="2.0">
+               every="3.0">
         params {
-          key: "direction"
+          key: "model"
           value {
-            type: DOUBLE
-            double_value: 0
-          }
-        }
-        params {
-          key: "gain"
-          value {
-            type: DOUBLE
-            double_value: 5
+            type: STRING
+            string_value: "PMS"
           }
         }
         params {
           key: "period"
           value {
             type: DOUBLE
-            double_value: 10
+            double_value: 8.0
+          }
+        }
+        params {
+          key: "number"
+          value {
+            type: INT32
+            int_value: 2
+          }
+        }
+        params {
+          key: "scale"
+          value {
+            type: DOUBLE
+            double_value: 2.0
+          }
+        }
+        params {
+          key: "gain"
+          value {
+            type: DOUBLE
+            double_value: 3.0
+          }
+        }
+        params {
+          key: "direction"
+          value {
+            type: DOUBLE
+            double_value: 0.5
+          }
+        }
+        params {
+          key: "angle"
+          value {
+            type: DOUBLE
+            double_value: 0.0
+          }
+        }
+        params {
+          key: "tau"
+          value {
+            type: DOUBLE
+            double_value: 0.6
+          }
+        }
+        params {
+          key: "amplitude"
+          value {
+            type: DOUBLE
+            double_value: 1.5
           }
         }
         params {
           key: "steepness"
           value {
             type: DOUBLE
-            double_value: 1
+            double_value: 0.3
+          }
+        }
+        params {
+          key: "phase"
+          value {
+            type: DOUBLE
+            double_value: 0.2
           }
         }
       </message>
-    </plugin> -->
+    </plugin>
 
   </world>
 </sdf>
