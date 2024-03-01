@@ -86,7 +86,7 @@ class vrx::SurfacePlace::Implementation
   public: std::mutex mutex;
 
   /// \brief Values for differentiation
-  public: double old_z = 0;
+  /*public: double old_z = 0;
   public: double old_2_z = 0;
   public: double dot_z = 0;
   public: double dot_z_old = 0;
@@ -119,7 +119,11 @@ class vrx::SurfacePlace::Implementation
   public: double old_z_5 = 0;
   public: double old_2_z_5 = 0;
   public: double dot_z_5 = 0;
-  public: double dot_z_old_5 = 0;
+  public: double dot_z_old_5 = 0;*/
+
+  public: std::vector<double> current_depth;
+  public: std::vector<double> old_depth;
+  public: std::vector<double> delta_depth;
 };
 
 //////////////////////////////////////////////////
@@ -247,6 +251,14 @@ void SurfacePlace::Configure(const sim::Entity &_entity,
   // Subscribe to receive wavefield parameters.
   this->dataPtr->node.Subscribe(this->dataPtr->wavefield.Topic(),
     &SurfacePlace::Implementation::OnWavefield, this->dataPtr.get());
+
+  this->dataPtr->current_depth.resize(sizeof(this->dataPtr->points));
+  this->dataPtr->old_depth.resize(sizeof(this->dataPtr->points));
+  this->dataPtr->delta_depth.resize(sizeof(this->dataPtr->points));
+
+  std::fill(this->dataPtr->current_depth.begin(), this->dataPtr->current_depth.end(), 0);
+  std::fill(this->dataPtr->old_depth.begin(), this->dataPtr->old_depth.end(), 0);
+  std::fill(this->dataPtr->delta_depth.begin(), this->dataPtr->delta_depth.end(), 0);
 }
 
 //////////////////////////////////////////////////
@@ -268,17 +280,18 @@ void SurfacePlace::PreUpdate(const sim::UpdateInfo &_info,
   }
   const math::Vector3d kEuler = (*kPose).Rot().Euler();
   math::Quaternion vq(kEuler.X(), kEuler.Y(), kEuler.Z());
-  const auto pos_z = (*this->dataPtr->link.WorldPose(_ecm)).Pos().Z();
+  /*const auto pos_z = (*this->dataPtr->link.WorldPose(_ecm)).Pos().Z();
   const auto pos_z0 = (*this->dataPtr->link0.WorldPose(_ecm)).Pos().Z();
   const auto pos_z1 = (*this->dataPtr->link1.WorldPose(_ecm)).Pos().Z();
   const auto pos_z2 = (*this->dataPtr->link2.WorldPose(_ecm)).Pos().Z();
   const auto pos_z3 = (*this->dataPtr->link3.WorldPose(_ecm)).Pos().Z();
   const auto pos_z4 = (*this->dataPtr->link4.WorldPose(_ecm)).Pos().Z();
-  const auto pos_z5 = (*this->dataPtr->link5.WorldPose(_ecm)).Pos().Z();
+  const auto pos_z5 = (*this->dataPtr->link5.WorldPose(_ecm)).Pos().Z();*/
 
   std::lock_guard<std::mutex> lock(this->dataPtr->mutex);
-  const int dmp = 5;
-  const int side_dmp = 5;
+  const int dmp = 20;
+  //const int side_dmp = 5;
+  int pos = 0;
 
   for (auto const &bpnt : this->dataPtr->points)
   {
@@ -304,9 +317,33 @@ void SurfacePlace::PreUpdate(const sim::UpdateInfo &_info,
     double deltaZ = (this->dataPtr->fluidLevel + dz) - kDdz;
     // Enforce only upward buoy force
     deltaZ = std::max(deltaZ, 0.0);
+    if(deltaZ > this->dataPtr->HullHeigth) //checks to see if the buoyant part gets completely submerged
+        gzdbg<<"buoyant part completely submerged"<<std::endl;
     deltaZ = std::min(deltaZ, this->dataPtr->HullHeigth);
-
+    //gzdbg<<"deltaZ="<<deltaZ<<std::endl; //water level
     float kBuoyForce = 0;
+
+    this->dataPtr->current_depth[pos] = this->CylinderVolume(this->dataPtr->hullRadius, deltaZ);
+    this->dataPtr->delta_depth[pos] = (this->dataPtr->current_depth[pos] - this->dataPtr->old_depth[pos])/0.002/4;
+    
+    if(deltaZ !=0) 
+    {
+      gzdbg<<"touchdown"<<std::endl;
+      kBuoyForce = this->CylinderVolume(this->dataPtr->hullRadius, deltaZ) / 
+        this->dataPtr->points.size() * -this->dataPtr->gravity.Z() * this->dataPtr->fluidDensity + dmp * this->dataPtr->delta_depth[pos];
+    }
+    else
+    {
+      gzdbg<<"__________detached__________"<<std::endl;
+      kBuoyForce = 0;
+    }
+
+    this->dataPtr->old_depth[pos] = this->dataPtr->current_depth[pos];
+
+
+    //-------------------------------------------------------------------------------------------------------------------------------------------
+    //OLD VERSION USING DAMPENING 
+    /*
     //gzdbg<<(pos_z-this->dataPtr->old_z)/0.001<<std::endl;
     //gzdbg<<this->dataPtr->dot_z_old<<std::endl;
     this->dataPtr->dot_z = (pos_z-this->dataPtr->old_2_z)/0.002/4;
@@ -322,42 +359,38 @@ void SurfacePlace::PreUpdate(const sim::UpdateInfo &_info,
       gzdbg<<"in base"<<std::endl;
       if(deltaZ !=0)
       {
-        gzdbg<<"touchdown"<<std::endl;
+        //gzdbg<<"touchdown"<<std::endl;
         kBuoyForce =
           this->CylinderVolume(this->dataPtr->hullRadius, deltaZ) / 
             this->dataPtr->points.size() * -this->dataPtr->gravity.Z() * this->dataPtr->fluidDensity - dmp * this->dataPtr->dot_z_old;
       }
       else
       {
-        gzdbg<<"__________detached__________"<<std::endl;
+        //gzdbg<<"__________detached__________"<<std::endl;
         kBuoyForce = 0;
       }
-      gzdbg<<kBuoyForce<<std::endl;
-      if(deltaZ > this->dataPtr->HullHeigth)
-        gzdbg<<"buoyant part completely submerged"<<std::endl;
+      //gzdbg<<kBuoyForce<<std::endl;
     }
     else if(bpnt==math::Vector3d(0, 0.8, 0))
     {
       //gzdbg<<"in 0"<<std::endl;
       if(deltaZ !=0)
       {
-        gzdbg<<"touchdown"<<std::endl;
+        //gzdbg<<"touchdown"<<std::endl;
         kBuoyForce =
           this->CylinderVolume(this->dataPtr->hullRadius, deltaZ) / 
             this->dataPtr->points.size() * -this->dataPtr->gravity.Z() * this->dataPtr->fluidDensity - side_dmp * this->dataPtr->dot_z_old_0;
       }
       else
       {
-        gzdbg<<"__________detached__________"<<std::endl;
+        //gzdbg<<"__________detached__________"<<std::endl;
         kBuoyForce = 0;
       }
-      gzdbg<<kBuoyForce<<std::endl;
-      if(deltaZ > this->dataPtr->HullHeigth)
-        gzdbg<<"buoyant part completely submerged"<<std::endl;
+      //gzdbg<<kBuoyForce<<std::endl;
     }
     else if(bpnt==math::Vector3d(0.692, 0.4, 0))
     {
-      gzdbg<<"in 1"<<std::endl;
+      //gzdbg<<"in 1"<<std::endl;
       if(deltaZ !=0)
       {
         //gzdbg<<"touchdown"<<std::endl;
@@ -367,89 +400,81 @@ void SurfacePlace::PreUpdate(const sim::UpdateInfo &_info,
       }
       else
       {
-        gzdbg<<"__________detached__________"<<std::endl;
+        //gzdbg<<"__________detached__________"<<std::endl;
         kBuoyForce = 0;
       }
-      gzdbg<<kBuoyForce<<std::endl;
-      if(deltaZ > this->dataPtr->HullHeigth)
-        gzdbg<<"buoyant part completely submerged"<<std::endl;
+      //gzdbg<<kBuoyForce<<std::endl;
     }
     else if(bpnt==math::Vector3d(0.692, -0.4, 0))
     {
-      gzdbg<<"in 2"<<std::endl;
+      //gzdbg<<"in 2"<<std::endl;
       if(deltaZ !=0)
       {
-        gzdbg<<"touchdown"<<std::endl;
+        //gzdbg<<"touchdown"<<std::endl;
         kBuoyForce =
           this->CylinderVolume(this->dataPtr->hullRadius, deltaZ) / 
             this->dataPtr->points.size() * -this->dataPtr->gravity.Z() * this->dataPtr->fluidDensity - side_dmp * this->dataPtr->dot_z_old_2;
       }
       else
       {
-        gzdbg<<"__________detached__________"<<std::endl;
+        //gzdbg<<"__________detached__________"<<std::endl;
         kBuoyForce = 0;
       }
-      gzdbg<<kBuoyForce<<std::endl;
-      if(deltaZ > this->dataPtr->HullHeigth)
-        gzdbg<<"buoyant part completely submerged"<<std::endl;
+      //gzdbg<<kBuoyForce<<std::endl;
     }
     else if(bpnt==math::Vector3d(0, -0.8, 0))
     {
-      gzdbg<<"in 3"<<std::endl;
+      //gzdbg<<"in 3"<<std::endl;
       if(deltaZ !=0)
       {
-        gzdbg<<"touchdown"<<std::endl;
+        //gzdbg<<"touchdown"<<std::endl;
         kBuoyForce =
           this->CylinderVolume(this->dataPtr->hullRadius, deltaZ) / 
             this->dataPtr->points.size() * -this->dataPtr->gravity.Z() * this->dataPtr->fluidDensity - side_dmp * this->dataPtr->dot_z_old_3;
       }
       else
       {
-        gzdbg<<"__________detached__________"<<std::endl;
+        //gzdbg<<"__________detached__________"<<std::endl;
         kBuoyForce = 0;
       }
-      gzdbg<<kBuoyForce<<std::endl;
-      if(deltaZ > this->dataPtr->HullHeigth)
-        gzdbg<<"buoyant part completely submerged"<<std::endl;
+      //gzdbg<<kBuoyForce<<std::endl;
     }
     else if(bpnt==math::Vector3d(-0.692, -0.4, 0))
     {
-      gzdbg<<"in 4"<<std::endl;
+      //gzdbg<<"in 4"<<std::endl;
       if(deltaZ !=0)
       {
-        gzdbg<<"touchdown"<<std::endl;
+        //gzdbg<<"touchdown"<<std::endl;
         kBuoyForce =
           this->CylinderVolume(this->dataPtr->hullRadius, deltaZ) / 
             this->dataPtr->points.size() * -this->dataPtr->gravity.Z() * this->dataPtr->fluidDensity - side_dmp * this->dataPtr->dot_z_old_4;
       }
       else
       {
-        gzdbg<<"__________detached__________"<<std::endl;
+        //gzdbg<<"__________detached__________"<<std::endl;
         kBuoyForce = 0;
       }
-      gzdbg<<kBuoyForce<<std::endl;
-      if(deltaZ > this->dataPtr->HullHeigth)
-        gzdbg<<"buoyant part completely submerged"<<std::endl;
+      //gzdbg<<kBuoyForce<<std::endl;
     }
     else if(bpnt==math::Vector3d(-0.692, 0.4, 0))
     {
-      gzdbg<<"in 5"<<std::endl;
+      //gzdbg<<"in 5"<<std::endl;
       if(deltaZ !=0)
       {
-        gzdbg<<"touchdown"<<std::endl;
+        //gzdbg<<"touchdown"<<std::endl;
         kBuoyForce =
           this->CylinderVolume(this->dataPtr->hullRadius, deltaZ) / 
             this->dataPtr->points.size() * -this->dataPtr->gravity.Z() * this->dataPtr->fluidDensity - side_dmp * this->dataPtr->dot_z_old_5;
       }
       else
       {
-        gzdbg<<"__________detached__________"<<std::endl;
+        //gzdbg<<"__________detached__________"<<std::endl;
         kBuoyForce = 0;
       }
-      gzdbg<<kBuoyForce<<std::endl;
-      if(deltaZ > this->dataPtr->HullHeigth)
-        gzdbg<<"buoyant part completely submerged"<<std::endl;
+      //gzdbg<<kBuoyForce<<std::endl;
     }
+    //----------------------------------------------------------------------------------------------------------------------------------------------------
+    */
     // Apply force at the point.
     // Position is in the link frame and force is in world frame.
     this->dataPtr->link.AddWorldForce(_ecm,
@@ -467,9 +492,10 @@ void SurfacePlace::PreUpdate(const sim::UpdateInfo &_info,
     // gzdbg << "gravity z: " << -this->dataPtr->gravity.Z() << std::endl;
     // gzdbg << "fluid density: " << this->dataPtr->fluidDensity << std::endl;
     // gzdbg << "Force: " << kBuoyForce << std::endl << std::endl;
+    pos++;
   }
   
-  this->dataPtr->old_2_z = this->dataPtr->old_z;
+  /*this->dataPtr->old_2_z = this->dataPtr->old_z;
   this->dataPtr->old_z = pos_z;
   this->dataPtr->dot_z_old = this->dataPtr->dot_z;
 
@@ -495,7 +521,7 @@ void SurfacePlace::PreUpdate(const sim::UpdateInfo &_info,
 
   this->dataPtr->old_2_z_5 = this->dataPtr->old_z_5;
   this->dataPtr->old_z_5 = pos_z5;
-  this->dataPtr->dot_z_old_5 = this->dataPtr->dot_z_5;
+  this->dataPtr->dot_z_old_5 = this->dataPtr->dot_z_5;*/
   
 }
 
