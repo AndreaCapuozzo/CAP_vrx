@@ -1,5 +1,4 @@
 <?xml version="1.0" ?>
-
 <sdf version="1.9">
   <world name="WaterTakeOff">
 
@@ -350,24 +349,27 @@
       <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/sydney_regatta</uri>
     </include>
     
-    <model name="launch_pad">
-      <pose>-580 200 1.2 0 0 0</pose>
-      <link name="body">
-        <collision name="collision1">
+    <model name="inclined_surface">
+      <link name="base_link">
+        <pose>0 0 5 0.08 0.08 0</pose>
+        <collision name="collision">
           <geometry>
-            <box>
-              <size>1.5 1.5 1.5</size>
-            </box>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>1 1</size>
+            </plane>
           </geometry>
         </collision>
-        <visual name="visual1">
+        <visual name="visual">
           <geometry>
-            <box>
-              <size>1.5 1.5 1.5</size>
-            </box>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>1 1</size>
+            </plane>
           </geometry>
         </visual>
       </link>
+      <static>true</static>
     </model>
 
     <include>
@@ -483,4 +485,72 @@
     </plugin>
 
   </world>
+</sdf>
+  <!--<world name="tilting_world">
+    <model name="inclined_surface">
+      <link name="base_link">
+        <pose>0 0 1 0.5 0 0</pose>
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>10 10</size>
+            </plane>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+        </visual>
+      </link>
+      <static>true</static>
+    </model>
+
+    <plugin
+        filename="gz-sim-physics-system"
+        name="gz::sim::systems::Physics">
+      </plugin>
+      <plugin
+        filename="gz-sim-user-commands-system"
+        name="gz::sim::systems::UserCommands">
+      </plugin>
+      <plugin
+        filename="gz-sim-sensors-system"
+        name="gz::sim::systems::Sensors">
+        <render_engine>ogre2</render_engine>
+        <disable_on_drained_battery>true</disable_on_drained_battery>
+      </plugin>
+      <plugin
+        filename="gz-sim-imu-system"
+        name="gz::sim::systems::Imu">
+      </plugin>
+      <plugin
+        filename="gz-sim-magnetometer-system"
+        name="gz::sim::systems::Magnetometer">
+      </plugin>
+      <plugin
+        filename="gz-sim-forcetorque-system"
+        name="gz::sim::systems::ForceTorque">
+      </plugin>
+      <plugin
+        filename="gz-sim-particle-emitter2-system"
+        name="gz::sim::systems::ParticleEmitter2">
+      </plugin>
+      <plugin
+        filename="gz-sim-scene-broadcaster-system"
+        name="gz::sim::systems::SceneBroadcaster">
+      </plugin>
+      <plugin
+        filename="gz-sim-contact-system"
+        name="gz::sim::systems::Contact">
+      </plugin>
+      <plugin
+        filename="gz-sim-navsat-system"
+        name="gz::sim::systems::NavSat">
+      </plugin>-->
+  </word>
 </sdf>
