@@ -4,6 +4,9 @@ project(vrx_gz)
 
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(ros_gz REQUIRED)
 
 find_package(gz-sim7 REQUIRED)
 set(GZ_SIM_VER ${gz-sim7_VERSION_MAJOR})
@@ -154,6 +157,7 @@ list(APPEND VRX_GZ_PLUGINS
   ScanDockScoringPlugin
   SimpleHydrodynamics
   Surface
+  CentralSurfacePlace
   SurfacePlace
   USVWind
   WaveVisual
@@ -171,6 +175,11 @@ foreach(PLUGIN ${VRX_GZ_PLUGINS})
     ScoringPlugin
     Waves
     Eigen3::Eigen
+  )
+  ament_target_dependencies(${PLUGIN} PUBLIC
+    rclcpp
+    std_msgs
+    ros_gz
   )
 endforeach()
 
