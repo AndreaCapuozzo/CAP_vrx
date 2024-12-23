@@ -22,10 +22,8 @@
 #include <gz/math/Vector3.hh>
 #include <gz/utils/ImplPtr.hh>
 #include <sdf/sdf.hh>
-#include <gz/sim/node.hh>
-#include "rclcpp/rclcpp.hpp"
-#include "std_msgs/msg/float32.hpp"
-#include "chrono"
+#include <gz/transport/Node.hh>
+#include <gz/msgs/float.pb.h>
 
 using namespace std::chrono_literals;
 
@@ -163,11 +161,9 @@ namespace vrx
     public: double CylinderVolume(double _r,
                                  double _h) const;
 
-    /// \brief Convenience function for calculating the height of wave under a sepcific point of the UAV. <MODS>
-    private: gazebo_ros::Node::SharedPtr RosNode{nullptr};
-    private: rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr wave_pub{nullptr};
-    private: rclcpp::TimerBase::SharedPtr timer_{nullptr};
-    private: void timer_callback();
+    /// \brief MODS convenience function for calculating the height of wave under a sepcific point of the UAV. 
+    private: gz::transport::Node GzNode;
+    private: gz::transport::Node::Publisher wave_pub;
     private: float wave_height;
 
     /// \brief Private data pointer.

@@ -173,22 +173,15 @@ void CentralSurfacePlace::Configure(const sim::Entity &_entity,
     sim::EntityComponentManager &_ecm,
     sim::EventManager &/*_eventMgr*/)
 {
-  // MODS: ros2 node creation, publisher and timer creation
-  this->RosNode = gazebo_ros::Node::CreateWithArgs("CentralSurfacePlaceNode");
-  if (!this->RosNode)
-  {
-    gzerr << "Errore creating Ros2 Node." << std::endl;
-    return;
-  }
-  this->wave_pub = this->RosNode->create_publisher<std_msgs::msg::Float32>("wave_height", 10);
-  this->timer_ = this->RosNode->create_wall_timer(1ms, std::bind(&CentralSurfacePlace::timer_callback, this));
+  // MODS: publisher creation
+  this->wave_pub = this->GzNode.Advertise<gz::msgs::Float>("wave_height");
 
-  // Parse required elements.
-  if (!_sdf->HasElement("link_name"))
+  if (!this->wave_pub)
   {
-    gzerr << "No <link_name> specified" << std::endl;
+    gzerr << "[CentralSurfacePlace] Unable to create gz::transport publisher on /wave_height\n";
     return;
   }
+  gzmsg << "[CentralSurfacePlace] Publishing wave_height on /wave_height\n";
 
   sim::Model model(_entity);
   std::string linkName = _sdf->Get<std::string>("link_name");
@@ -507,6 +500,11 @@ void CentralSurfacePlace::PreUpdate(const sim::UpdateInfo &_info,
     // gzdbg << "fluid density: " << this->dataPtr->fluidDensity << std::endl;
     // gzdbg << "Force: " << kBuoyForce << std::endl << std::endl;
     pos++;
+
+    //MODS: to publish wave height
+    gz::msgs::Float msg;
+    msg.set_data(this->wave_height);
+    this->wave_pub.Publish(msg);
   }
   
   /*this->dataPtr->old_2_z = this->dataPtr->old_z;
@@ -567,13 +565,6 @@ double CentralSurfacePlace::FluidDensity() const
 double CentralSurfacePlace::CylinderVolume(double _r, double _h) const
 {
   return 3.14*_r*_r*_h;
-}
-
-void CentralSurfacePlace::timer_callback()
-{
-  auto message = std_msgs::msg::Float32();
-  message.data = wave_height;
-  wave_pub->publish(message);
 }
 
 GZ_ADD_PLUGIN(CentralSurfacePlace,
