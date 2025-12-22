@@ -427,14 +427,14 @@
           key: "scale"
           value {
             type: DOUBLE
-            double_value: 1.5
+            double_value: 1.0
           }
         }
         params {
           key: "gain"
           value {
             type: DOUBLE
-            double_value: 2.0
+            double_value: 1.0
           }
         }
         params {
@@ -462,14 +462,14 @@
           key: "amplitude"
           value {
             type: DOUBLE
-            double_value: 2.3
+            double_value: 1.0
           }
         }
         params {
           key: "steepness"
           value {
             type: DOUBLE
-            double_value: 1.8
+            double_value: 1.0
           }
         }
         params {

@@ -30,14 +30,14 @@
 #include "gz/transport/Node.hh"
 #include "gz/physics.hh"
 
-#include "CentralSurfacePlace.hh"
+#include "SurfaceUSV.hh"
 #include "Wavefield.hh"
 
 using namespace gz;
 using namespace vrx;
 
-/// \brief Private CentralSurfacePlace data class.
-class vrx::CentralSurfacePlace::Implementation
+/// \brief Private SurfaceUSV data class.
+class vrx::SurfaceUSV::Implementation
 {
   /// \brief Parse the points via SDF.
   /// \param[in] _sdf Pointer to the SDF.
@@ -49,15 +49,9 @@ class vrx::CentralSurfacePlace::Implementation
 
   /// \brief The link entity.
   public: sim::Link link{sim::kNullEntity};
-  public: sim::Link link0{sim::kNullEntity};
-  public: sim::Link link1{sim::kNullEntity};
-  public: sim::Link link2{sim::kNullEntity};
-  public: sim::Link link3{sim::kNullEntity};
-  public: sim::Link link4{sim::kNullEntity};
-  public: sim::Link link5{sim::kNullEntity};
 
   /// \brief Vessel length [m].
-  public: double HullHeigth = 0.283;
+  public: double HullLength = 0.283;
 
   /// \brief Demi-hull radius [m].
   public: double hullRadius = 0.05;
@@ -127,7 +121,7 @@ class vrx::CentralSurfacePlace::Implementation
 };
 
 //////////////////////////////////////////////////
-void CentralSurfacePlace::Implementation::ParsePoints(
+void SurfaceUSV::Implementation::ParsePoints(
   const std::shared_ptr<const sdf::Element> &_sdf)
 {
   if (!_sdf->HasElement("points"))
@@ -155,34 +149,30 @@ void CentralSurfacePlace::Implementation::ParsePoints(
 }
 
 //////////////////////////////////////////////////
-void CentralSurfacePlace::Implementation::OnWavefield(const msgs::Param &_msg)
+void SurfaceUSV::Implementation::OnWavefield(const msgs::Param &_msg)
 {
   std::lock_guard<std::mutex> lock(this->mutex);
   this->wavefield.Load(_msg);
 }
 
 //////////////////////////////////////////////////
-CentralSurfacePlace::CentralSurfacePlace()
-  : System(), dataPtr(utils::MakeUniqueImpl<Implementation>())//, Node("central_surface_place"), wave_height(0)
+SurfaceUSV::SurfaceUSV()
+  : System(), dataPtr(utils::MakeUniqueImpl<Implementation>())
 {
 }
 
 //////////////////////////////////////////////////
-void CentralSurfacePlace::Configure(const sim::Entity &_entity,
+void SurfaceUSV::Configure(const sim::Entity &_entity,
     const std::shared_ptr<const sdf::Element> &_sdf,
     sim::EntityComponentManager &_ecm,
     sim::EventManager &/*_eventMgr*/)
 {
-  // MODS: publisher creation
-  this->wave_pub = this->GzNode.Advertise<gz::msgs::Float>("wave_height");
-  this->z_height_pub = this->GzNode.Advertise<gz::msgs::Float>("z_height");
-
-  if (!this->wave_pub || !this->z_height_pub)
+  // Parse required elements.
+  if (!_sdf->HasElement("link_name"))
   {
-    gzerr << "[CentralSurfacePlace] Unable to create gz::transport publisher on /wave_height or /z_height\n";
+    gzerr << "No <link_name> specified" << std::endl;
     return;
   }
-  gzmsg << "[CentralSurfacePlace] Publishing wave_height on /wave_height\n";
 
   sim::Model model(_entity);
   std::string linkName = _sdf->Get<std::string>("link_name");
@@ -193,20 +183,14 @@ void CentralSurfacePlace::Configure(const sim::Entity &_entity,
            << "] in model" << std::endl;
     return;
   }
-  this->dataPtr->link0 = sim::Link(model.LinkByName(_ecm, "rotor_0"));
-  this->dataPtr->link1 = sim::Link(model.LinkByName(_ecm, "rotor_1"));
-  this->dataPtr->link2 = sim::Link(model.LinkByName(_ecm, "rotor_2"));
-  this->dataPtr->link3 = sim::Link(model.LinkByName(_ecm, "rotor_3"));
-  this->dataPtr->link4 = sim::Link(model.LinkByName(_ecm, "rotor_4"));
-  this->dataPtr->link5 = sim::Link(model.LinkByName(_ecm, "rotor_5"));
 
   // Optional parameters.
   // Although some of these parameters are required in this plugin, a potential
   // derived plugin might not need them. Make sure that the default values are
   // reasonable.
-  if (_sdf->HasElement("hell_height"))
+  if (_sdf->HasElement("hull_height"))
   {
-    this->dataPtr->HullHeigth = _sdf->Get<double>("hell_height");
+    this->dataPtr->HullLength = _sdf->Get<double>("hull_height");
   }
 
   if (_sdf->HasElement("hull_radius"))
@@ -241,10 +225,10 @@ void CentralSurfacePlace::Configure(const sim::Entity &_entity,
   // Wavefield
   this->dataPtr->wavefield.Load(_sdf);
 
-  gzdbg << "CentralCentralSurfacePlace plugin successfully configured with the following "
+  gzdbg << "SurfaceUSV plugin successfully configured with the following "
          << "parameters:" << std::endl;
   gzdbg << "  <link_name>: " << linkName << std::endl;
-  gzdbg << "  <vehicle_length>: " << this->dataPtr->HullHeigth << std::endl;
+  gzdbg << "  <vehicle_length>: " << this->dataPtr->HullLength << std::endl;
   gzdbg << "  <hull_radius>: " << this->dataPtr->hullRadius << std::endl;
   gzdbg << "  <fluid_level>: " << this->dataPtr->fluidLevel << std::endl;
   gzdbg << "  <fluid_density>: " << this->dataPtr->fluidDensity << std::endl;
@@ -254,7 +238,7 @@ void CentralSurfacePlace::Configure(const sim::Entity &_entity,
 
   // Subscribe to receive wavefield parameters.
   this->dataPtr->node.Subscribe(this->dataPtr->wavefield.Topic(),
-    &CentralSurfacePlace::Implementation::OnWavefield, this->dataPtr.get());
+    &SurfaceUSV::Implementation::OnWavefield, this->dataPtr.get());
 
   this->dataPtr->current_depth.resize(sizeof(this->dataPtr->points));
   this->dataPtr->old_depth.resize(sizeof(this->dataPtr->points));
@@ -266,10 +250,10 @@ void CentralSurfacePlace::Configure(const sim::Entity &_entity,
 }
 
 //////////////////////////////////////////////////
-void CentralSurfacePlace::PreUpdate(const sim::UpdateInfo &_info,
+void SurfaceUSV::PreUpdate(const sim::UpdateInfo &_info,
     sim::EntityComponentManager &_ecm)
 {
-  GZ_PROFILE("CentralSurfacePlace::PreUpdate");
+  GZ_PROFILE("SurfaceUSV::PreUpdate");
 
   if (_info.paused)
     return;
@@ -317,33 +301,29 @@ void CentralSurfacePlace::PreUpdate(const sim::UpdateInfo &_info,
     // Vertical wave displacement.
     double dz = depth + point.Z();
 
-    // Total z location of boat grid point relative to fluid CentralSurfacePlace.
+    // Total z location of boat grid point relative to fluid SurfaceUSV.
     double deltaZ = (this->dataPtr->fluidLevel + dz) - kDdz;
     // Enforce only upward buoy force
     deltaZ = std::max(deltaZ, 0.0);
-    if(deltaZ > this->dataPtr->HullHeigth) //checks to see if the buoyant part gets completely submerged
+    if(deltaZ > 2 * this->dataPtr->hullRadius) //checks to see if the buoyant part gets completely submerged
         gzdbg<<"buoyant part completely submerged"<<std::endl;
-    deltaZ = std::min(deltaZ, this->dataPtr->HullHeigth);
+    deltaZ = std::min(deltaZ, 2 * this->dataPtr->hullRadius);
     //gzdbg<<"deltaZ="<<deltaZ<<std::endl; //water level
     float kBuoyForce = 0;
 
-    this->dataPtr->current_depth[pos] = this->CylinderVolume(this->dataPtr->hullRadius, deltaZ);
+    this->dataPtr->current_depth[pos] = this->CircleSegment(this->dataPtr->hullRadius, deltaZ);
     this->dataPtr->delta_depth[pos] = (this->dataPtr->current_depth[pos] - this->dataPtr->old_depth[pos])/0.002/4;
-
+    
     if(deltaZ !=0) 
     {
       gzdbg<<"touchdown"<<std::endl;
-      kBuoyForce = this->CylinderVolume(this->dataPtr->hullRadius, deltaZ) / 
-        this->dataPtr->points.size() * -this->dataPtr->gravity.Z() * this->dataPtr->fluidDensity + dmp * this->dataPtr->delta_depth[pos];
-      //MODS: to publish wave height 
-
-      this->wave_height = dz;
+      kBuoyForce = this->CircleSegment(this->dataPtr->hullRadius, deltaZ) *
+        this->dataPtr->HullLength / this->dataPtr->points.size() * -this->dataPtr->gravity.Z() * this->dataPtr->fluidDensity + dmp * this->dataPtr->delta_depth[pos];
     }
     else
     {
       gzdbg<<"__________detached__________"<<std::endl;
       kBuoyForce = 0;
-      this->wave_height = 0;
     }
 
     this->dataPtr->old_depth[pos] = this->dataPtr->current_depth[pos];
@@ -369,7 +349,7 @@ void CentralSurfacePlace::PreUpdate(const sim::UpdateInfo &_info,
       {
         //gzdbg<<"touchdown"<<std::endl;
         kBuoyForce =
-          this->CylinderVolume(this->dataPtr->hullRadius, deltaZ) / 
+          this->CircleSegment(this->dataPtr->hullRadius, deltaZ) / 
             this->dataPtr->points.size() * -this->dataPtr->gravity.Z() * this->dataPtr->fluidDensity - dmp * this->dataPtr->dot_z_old;
       }
       else
@@ -386,7 +366,7 @@ void CentralSurfacePlace::PreUpdate(const sim::UpdateInfo &_info,
       {
         //gzdbg<<"touchdown"<<std::endl;
         kBuoyForce =
-          this->CylinderVolume(this->dataPtr->hullRadius, deltaZ) / 
+          this->CircleSegment(this->dataPtr->hullRadius, deltaZ) / 
             this->dataPtr->points.size() * -this->dataPtr->gravity.Z() * this->dataPtr->fluidDensity - side_dmp * this->dataPtr->dot_z_old_0;
       }
       else
@@ -403,7 +383,7 @@ void CentralSurfacePlace::PreUpdate(const sim::UpdateInfo &_info,
       {
         //gzdbg<<"touchdown"<<std::endl;
         kBuoyForce =
-          this->CylinderVolume(this->dataPtr->hullRadius, deltaZ) / 
+          this->CircleSegment(this->dataPtr->hullRadius, deltaZ) / 
             this->dataPtr->points.size() * -this->dataPtr->gravity.Z() * this->dataPtr->fluidDensity - side_dmp * this->dataPtr->dot_z_old_1;
       }
       else
@@ -420,7 +400,7 @@ void CentralSurfacePlace::PreUpdate(const sim::UpdateInfo &_info,
       {
         //gzdbg<<"touchdown"<<std::endl;
         kBuoyForce =
-          this->CylinderVolume(this->dataPtr->hullRadius, deltaZ) / 
+          this->CircleSegment(this->dataPtr->hullRadius, deltaZ) / 
             this->dataPtr->points.size() * -this->dataPtr->gravity.Z() * this->dataPtr->fluidDensity - side_dmp * this->dataPtr->dot_z_old_2;
       }
       else
@@ -437,7 +417,7 @@ void CentralSurfacePlace::PreUpdate(const sim::UpdateInfo &_info,
       {
         //gzdbg<<"touchdown"<<std::endl;
         kBuoyForce =
-          this->CylinderVolume(this->dataPtr->hullRadius, deltaZ) / 
+          this->CircleSegment(this->dataPtr->hullRadius, deltaZ) / 
             this->dataPtr->points.size() * -this->dataPtr->gravity.Z() * this->dataPtr->fluidDensity - side_dmp * this->dataPtr->dot_z_old_3;
       }
       else
@@ -454,7 +434,7 @@ void CentralSurfacePlace::PreUpdate(const sim::UpdateInfo &_info,
       {
         //gzdbg<<"touchdown"<<std::endl;
         kBuoyForce =
-          this->CylinderVolume(this->dataPtr->hullRadius, deltaZ) / 
+          this->CircleSegment(this->dataPtr->hullRadius, deltaZ) / 
             this->dataPtr->points.size() * -this->dataPtr->gravity.Z() * this->dataPtr->fluidDensity - side_dmp * this->dataPtr->dot_z_old_4;
       }
       else
@@ -471,7 +451,7 @@ void CentralSurfacePlace::PreUpdate(const sim::UpdateInfo &_info,
       {
         //gzdbg<<"touchdown"<<std::endl;
         kBuoyForce =
-          this->CylinderVolume(this->dataPtr->hullRadius, deltaZ) / 
+          this->CircleSegment(this->dataPtr->hullRadius, deltaZ) / 
             this->dataPtr->points.size() * -this->dataPtr->gravity.Z() * this->dataPtr->fluidDensity - side_dmp * this->dataPtr->dot_z_old_5;
       }
       else
@@ -496,19 +476,11 @@ void CentralSurfacePlace::PreUpdate(const sim::UpdateInfo &_info,
     // gzdbg << "kDdz: " << kDdz << std::endl;
     // gzdbg << "deltaZ: " << deltaZ << std::endl;
     // gzdbg << "hull radius: " << this->dataPtr->hullRadius << std::endl;
-    // gzdbg << "vehicle length: " << this->dataPtr->HullHeigth << std::endl;
+    // gzdbg << "vehicle length: " << this->dataPtr->HullLength << std::endl;
     // gzdbg << "gravity z: " << -this->dataPtr->gravity.Z() << std::endl;
     // gzdbg << "fluid density: " << this->dataPtr->fluidDensity << std::endl;
     // gzdbg << "Force: " << kBuoyForce << std::endl << std::endl;
     pos++;
-
-    //MODS: to publish wave height and vehicle height
-    gz::msgs::Float msg;
-    msg.set_data(this->wave_height);
-    this->wave_pub.Publish(msg);
-    gz::msgs::Float msg2;
-    msg2.set_data((*kPose).Pos().Z() + kBpntW.Z());
-    this->z_height_pub.Publish(msg2);
   }
   
   /*this->dataPtr->old_2_z = this->dataPtr->old_z;
@@ -542,39 +514,40 @@ void CentralSurfacePlace::PreUpdate(const sim::UpdateInfo &_info,
 }
 
 //////////////////////////////////////////////////
-math::Vector3d CentralSurfacePlace::Gravity() const
+math::Vector3d SurfaceUSV::Gravity() const
 {
   return this->dataPtr->gravity;
 }
 
 //////////////////////////////////////////////////
-double CentralSurfacePlace::HullHeigth() const
+double SurfaceUSV::HullLength() const
 {
-  return this->dataPtr->HullHeigth;
+  return this->dataPtr->HullLength;
 }
 
 //////////////////////////////////////////////////
-double CentralSurfacePlace::HullRadius() const
+double SurfaceUSV::HullRadius() const
 {
   return this->dataPtr->hullRadius;
 }
 
 //////////////////////////////////////////////////
-double CentralSurfacePlace::FluidDensity() const
+double SurfaceUSV::FluidDensity() const
 {
   return this->dataPtr->fluidDensity;
 }
 
 //////////////////////////////////////////////////
-double CentralSurfacePlace::CylinderVolume(double _r, double _h) const
+double SurfaceUSV::CircleSegment(double _r, double _h) const
 {
-  return 3.14*_r*_r*_h;
+  return _r * _r * acos((_r -_h) / _r ) -
+    (_r - _h) * sqrt(2 * _r * _h - _h * _h);
 }
 
-GZ_ADD_PLUGIN(CentralSurfacePlace,
+GZ_ADD_PLUGIN(SurfaceUSV,
               sim::System,
-              CentralSurfacePlace::ISystemConfigure,
-              CentralSurfacePlace::ISystemPreUpdate)
+              SurfaceUSV::ISystemConfigure,
+              SurfaceUSV::ISystemPreUpdate)
 
-GZ_ADD_PLUGIN_ALIAS(vrx::CentralSurfacePlace,
-                    "vrx::CentralSurfacePlace")
+GZ_ADD_PLUGIN_ALIAS(vrx::SurfaceUSV,
+                    "vrx::SurfaceUSV")

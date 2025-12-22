@@ -22,10 +22,6 @@
 #include <gz/math/Vector3.hh>
 #include <gz/utils/ImplPtr.hh>
 #include <sdf/sdf.hh>
-#include <gz/transport/Node.hh>
-#include <gz/msgs/float.pb.h>
-
-using namespace std::chrono_literals;
 
 namespace vrx
 {
@@ -102,16 +98,16 @@ namespace vrx
   ///     </wave>
   ///   </wavefield>
   /// </plugin>
-  class CentralSurfacePlace
+  class SurfaceUSV
       : public gz::sim::System,
         public gz::sim::ISystemConfigure,
         public gz::sim::ISystemPreUpdate
   {
     /// \brief Constructor.
-    public: CentralSurfacePlace();
+    public: SurfaceUSV();
 
     /// \brief Destructor.
-    public: ~CentralSurfacePlace() override = default;
+    public: ~SurfaceUSV() override = default;
 
     // Documentation inherited.
     public: void Configure(const gz::sim::Entity &_entity,
@@ -130,7 +126,7 @@ namespace vrx
 
     /// \brief Get the vehicle length.
     /// \return Vechicle length in m.
-    public: double HullHeigth() const;
+    public: double HullLength() const;
 
     /// \brief Get the hull radius.
     /// \return The hull radius in m.
@@ -158,14 +154,8 @@ namespace vrx
     /// \param[in] _h Height of the cylindrical part.
     /// \return The area.
     /// \ref https://www.mathopenref.com/segmentareaht.html
-    public: double CylinderVolume(double _r,
+    public: double CircleSegment(double _r,
                                  double _h) const;
-
-    /// \brief MODS convenience function for calculating the height of wave under a sepcific point of the UAV. 
-    private: gz::transport::Node GzNode;
-    private: gz::transport::Node::Publisher wave_pub;
-    private: gz::transport::Node::Publisher z_height_pub;
-    private: float wave_height;
 
     /// \brief Private data pointer.
     GZ_UTILS_UNIQUE_IMPL_PTR(dataPtr)

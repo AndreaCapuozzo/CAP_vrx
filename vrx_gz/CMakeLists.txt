@@ -158,9 +158,12 @@ list(APPEND VRX_GZ_PLUGINS
   Surface
   CentralSurfacePlace
   SurfacePlace
+  SurfaceUSV
   USVWind
   WaveVisual
   WildlifeScoringPlugin
+  SimpleHydrodynamicsUSV
+  CustomThrusters
 )
 
 foreach(PLUGIN ${VRX_GZ_PLUGINS})
