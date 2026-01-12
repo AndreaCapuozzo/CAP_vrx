@@ -14,23 +14,17 @@
  * limitations under the License.
  *
  */
-#ifndef GZ_SIM_SYSTEMS_THRUSTER_HH_
-#define GZ_SIM_SYSTEMS_THRUSTER_HH_
+#ifndef VRX_CUSTOM_THRUSTERS_HH_
+#define VRX_CUSTOM_THRUSTERS_HH_
 
 #include <gz/sim/System.hh>
 
 #include <memory>
 
-namespace gz
-{
-namespace sim
-{
-// Inline bracket to help doxygen filtering.
-inline namespace GZ_SIM_VERSION_NAMESPACE {
-namespace systems
+namespace vrx
 {
   // Forward declaration
-  class ThrusterPrivateData;
+  class CustomThrustersPrivateData;
 
   /// \brief This plugin simulates a maritime thruster for
   /// boats and underwater vehicles. It uses the equations described in Fossen's
@@ -82,8 +76,10 @@ namespace systems
   ///               no units, defaults to 0.0]
   /// - `<d_gain>`: Derivative gain for joint PID controller. [Optional,
   ///               no units, defaults to 0.0]
-  /// - `<max_thrust_cmd>`: Maximum input thrust or angular velocity command.
-  ///                       [Optional, defaults to 1000N or 1000rad/s]
+  /// - `<max_thrust_cmd>`: Maximum thrust or angular velocity output. Input
+  ///                       commands are normalized in [-1, 1] and scaled by
+  ///                       this value. [Optional, defaults to 1000N or
+  ///                       1000rad/s]
   /// - `<min_thrust_cmd>`: Minimum input thrust or angular velocity command.
   ///                       [Optional, defaults to -1000N or -1000rad/s]
   /// - `<deadband>`: Deadband of the thruster. Absolute value below which the
@@ -135,14 +131,14 @@ namespace systems
       ```
   **/
   /// The vehicle should move in a circle.
-  class Thruster:
-    public gz::sim::System,
-    public gz::sim::ISystemConfigure,
-    public gz::sim::ISystemPreUpdate,
-    public gz::sim::ISystemPostUpdate
+  class CustomThrusters
+      : public gz::sim::System,
+        public gz::sim::ISystemConfigure,
+        public gz::sim::ISystemPreUpdate,
+        public gz::sim::ISystemPostUpdate
   {
     /// \brief Constructor
-    public: Thruster();
+    public: CustomThrusters();
 
     /// Documentation inherited
     public: void Configure(
@@ -157,15 +153,12 @@ namespace systems
         gz::sim::EntityComponentManager &_ecm) override;
 
     /// Documentation inherited
-    public: void PostUpdate(const UpdateInfo &_info,
-        const EntityComponentManager &_ecm) override;
+    public: void PostUpdate(const gz::sim::UpdateInfo &_info,
+        const gz::sim::EntityComponentManager &_ecm) override;
 
     /// \brief Private data pointer
-    private: std::unique_ptr<ThrusterPrivateData> dataPtr;
+    private: std::unique_ptr<CustomThrustersPrivateData> dataPtr;
   };
-}
-}
-}
 }
 
 #endif

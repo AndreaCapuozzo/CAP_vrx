@@ -50,9 +50,10 @@
 
 using namespace gz;
 using namespace sim;
-using namespace systems;
 
-class gz::sim::systems::ThrusterPrivateData
+namespace vrx
+{
+class CustomThrustersPrivateData
 {
   /// \brief The mode of operation
   public: enum OperationMode {
@@ -207,14 +208,14 @@ class gz::sim::systems::ThrusterPrivateData
 };
 
 /////////////////////////////////////////////////
-Thruster::Thruster():
-  dataPtr(std::make_unique<ThrusterPrivateData>())
+CustomThrusters::CustomThrusters():
+  dataPtr(std::make_unique<CustomThrustersPrivateData>())
 {
   // do nothing
 }
 
 /////////////////////////////////////////////////
-void Thruster::Configure(
+void CustomThrusters::Configure(
   const Entity &_entity,
   const std::shared_ptr<const sdf::Element> &_sdf,
   EntityComponentManager &_ecm,
@@ -264,8 +265,8 @@ void Thruster::Configure(
   if (_sdf->HasElement("use_angvel_cmd"))
   {
     this->dataPtr->opmode = _sdf->Get<bool>("use_angvel_cmd") ?
-      ThrusterPrivateData::OperationMode::AngVelCmd :
-      ThrusterPrivateData::OperationMode::ForceCmd;
+      CustomThrustersPrivateData::OperationMode::AngVelCmd :
+      CustomThrustersPrivateData::OperationMode::ForceCmd;
   }
 
   // Get wake fraction number, default 0.2 otherwise
@@ -346,11 +347,12 @@ void Thruster::Configure(
       ns + "/" + this->dataPtr->topic);
     this->dataPtr->deadbandTopic = gz::transport::TopicUtils::AsValidTopic(
       ns + "/" + this->dataPtr->topic + "/enable_deadband");
-    if (this->dataPtr->opmode == ThrusterPrivateData::OperationMode::ForceCmd)
+    if (this->dataPtr->opmode ==
+        CustomThrustersPrivateData::OperationMode::ForceCmd)
     {
       this->dataPtr->node.Subscribe(
           thrusterTopic,
-          &ThrusterPrivateData::OnCmdThrust,
+          &CustomThrustersPrivateData::OnCmdThrust,
           this->dataPtr.get());
 
       feedbackTopic = gz::transport::TopicUtils::AsValidTopic(
@@ -360,7 +362,7 @@ void Thruster::Configure(
     {
       this->dataPtr->node.Subscribe(
         thrusterTopic,
-        &ThrusterPrivateData::OnCmdAngVel,
+        &CustomThrustersPrivateData::OnCmdAngVel,
         this->dataPtr.get());
 
       feedbackTopic = gz::transport::TopicUtils::AsValidTopic(
@@ -368,7 +370,7 @@ void Thruster::Configure(
     }
   }
   else if (this->dataPtr->opmode ==
-           ThrusterPrivateData::OperationMode::ForceCmd)
+           CustomThrustersPrivateData::OperationMode::ForceCmd)
   {
     // Subscribe to force commands
     thrusterTopic = gz::transport::TopicUtils::AsValidTopic(
@@ -376,7 +378,7 @@ void Thruster::Configure(
 
     this->dataPtr->node.Subscribe(
       thrusterTopic,
-      &ThrusterPrivateData::OnCmdThrust,
+      &CustomThrustersPrivateData::OnCmdThrust,
       this->dataPtr.get());
 
     feedbackTopic = gz::transport::TopicUtils::AsValidTopic(
@@ -394,7 +396,7 @@ void Thruster::Configure(
 
     this->dataPtr->node.Subscribe(
       thrusterTopic,
-      &ThrusterPrivateData::OnCmdAngVel,
+      &CustomThrustersPrivateData::OnCmdAngVel,
       this->dataPtr.get());
 
     feedbackTopic = gz::transport::TopicUtils::AsValidTopic(
@@ -411,7 +413,7 @@ void Thruster::Configure(
   {
     this->dataPtr->node.Subscribe(
         this->dataPtr->deadbandTopic,
-        &ThrusterPrivateData::OnDeadbandEnable,
+        &CustomThrustersPrivateData::OnDeadbandEnable,
         this->dataPtr.get());
     gzmsg << "Thruster listening to enable_deadband on ["
           << this->dataPtr->deadbandTopic << "]" << std::endl;
@@ -514,11 +516,12 @@ void Thruster::Configure(
 }
 
 /////////////////////////////////////////////////
-void ThrusterPrivateData::OnCmdThrust(const gz::msgs::Double &_msg)
+void CustomThrustersPrivateData::OnCmdThrust(const gz::msgs::Double &_msg)
 {
   std::lock_guard<std::mutex> lock(mtx);
-  this->thrust = gz::math::clamp(gz::math::fixnan(_msg.data()),
-    this->cmdMin, this->cmdMax);
+  const double normalizedCmd = gz::math::clamp(gz::math::fixnan(_msg.data()),
+    -1.0, 1.0);
+  this->thrust = normalizedCmd * this->cmdMax;
 
   // Thrust is proportional to the Rotation Rate squared
   // See Thor I Fossen's  "Guidance and Control of ocean vehicles" p. 246
@@ -526,7 +529,8 @@ void ThrusterPrivateData::OnCmdThrust(const gz::msgs::Double &_msg)
 }
 
 /////////////////////////////////////////////////
-void ThrusterPrivateData::OnDeadbandEnable(const gz::msgs::Boolean &_msg)
+void CustomThrustersPrivateData::OnDeadbandEnable(
+  const gz::msgs::Boolean &_msg)
 {
   std::lock_guard<std::mutex> lock(this->deadbandMutex);
   if (_msg.data() != this->enableDeadband)
@@ -546,12 +550,12 @@ void ThrusterPrivateData::OnDeadbandEnable(const gz::msgs::Boolean &_msg)
 }
 
 /////////////////////////////////////////////////
-void ThrusterPrivateData::OnCmdAngVel(const gz::msgs::Double &_msg)
+void CustomThrustersPrivateData::OnCmdAngVel(const gz::msgs::Double &_msg)
 {
   std::lock_guard<std::mutex> lock(mtx);
-  this->propellerAngVel =
-    gz::math::clamp(gz::math::fixnan(_msg.data()),
-      this->cmdMin, this->cmdMax);
+  const double normalizedCmd = gz::math::clamp(gz::math::fixnan(_msg.data()),
+    -1.0, 1.0);
+  this->propellerAngVel = normalizedCmd * this->cmdMax;
 
   // Thrust is proportional to the Rotation Rate squared
   // See Thor I Fossen's  "Guidance and Control of ocean vehicles" p. 246
@@ -559,7 +563,7 @@ void ThrusterPrivateData::OnCmdAngVel(const gz::msgs::Double &_msg)
 }
 
 /////////////////////////////////////////////////
-double ThrusterPrivateData::ThrustToAngularVec(double _thrust)
+double CustomThrustersPrivateData::ThrustToAngularVec(double _thrust)
 {
   // Only update if the thrust coefficient was not set by configuration
   // and angular velocity is not zero. Some velocity is needed to calculate
@@ -582,7 +586,7 @@ double ThrusterPrivateData::ThrustToAngularVec(double _thrust)
 }
 
 /////////////////////////////////////////////////
-void ThrusterPrivateData::UpdateThrustCoefficient()
+void CustomThrustersPrivateData::UpdateThrustCoefficient()
 {
   this->thrustCoefficient = this->alpha1 + this->alpha2 *
       (((1 - this->wakeFraction) * this->linearVelocity)
@@ -590,7 +594,7 @@ void ThrusterPrivateData::UpdateThrustCoefficient()
 }
 
 /////////////////////////////////////////////////
-double ThrusterPrivateData::AngularVelToThrust(double _angVel)
+double CustomThrustersPrivateData::AngularVelToThrust(double _angVel)
 {
   // Thrust is proportional to the Rotation Rate squared
   // See Thor I Fossen's  "Guidance and Control of ocean vehicles" p. 246
@@ -599,7 +603,7 @@ double ThrusterPrivateData::AngularVelToThrust(double _angVel)
 }
 
 /////////////////////////////////////////////////
-bool ThrusterPrivateData::HasSufficientBattery(
+bool CustomThrustersPrivateData::HasSufficientBattery(
   const EntityComponentManager &_ecm) const
 {
   bool result = true;
@@ -621,7 +625,9 @@ bool ThrusterPrivateData::HasSufficientBattery(
 }
 
 /////////////////////////////////////////////////
-void ThrusterPrivateData::ApplyDeadband(double &_thrust, double &_angVel)
+void CustomThrustersPrivateData::ApplyDeadband(
+  double &_thrust,
+  double &_angVel)
 {
     if (abs(_thrust) < this->deadband)
     {
@@ -631,7 +637,7 @@ void ThrusterPrivateData::ApplyDeadband(double &_thrust, double &_angVel)
 }
 
 /////////////////////////////////////////////////
-void Thruster::PreUpdate(
+void CustomThrusters::PreUpdate(
   const gz::sim::UpdateInfo &_info,
   gz::sim::EntityComponentManager &_ecm)
 {
@@ -742,7 +748,8 @@ void Thruster::PreUpdate(
     angvel.set_data(desiredPropellerAngVel);
   }
 
-  if (this->dataPtr->opmode == ThrusterPrivateData::OperationMode::ForceCmd)
+  if (this->dataPtr->opmode ==
+      CustomThrustersPrivateData::OperationMode::ForceCmd)
   {
     this->dataPtr->pub.Publish(angvel);
   }
@@ -766,16 +773,18 @@ void Thruster::PreUpdate(
 }
 
 /////////////////////////////////////////////////
-void Thruster::PostUpdate(const UpdateInfo &/*unused*/,
+void CustomThrusters::PostUpdate(const UpdateInfo &/*unused*/,
   const EntityComponentManager &_ecm)
 {
   this->dataPtr->enabled = this->dataPtr->HasSufficientBattery(_ecm);
 }
 
-GZ_ADD_PLUGIN(
-  Thruster, System,
-  Thruster::ISystemConfigure,
-  Thruster::ISystemPreUpdate,
-  Thruster::ISystemPostUpdate)
+}  // namespace vrx
 
-GZ_ADD_PLUGIN_ALIAS(Thruster, "gz::sim::systems::Thruster")
+GZ_ADD_PLUGIN(
+  vrx::CustomThrusters, System,
+  vrx::CustomThrusters::ISystemConfigure,
+  vrx::CustomThrusters::ISystemPreUpdate,
+  vrx::CustomThrusters::ISystemPostUpdate)
+
+GZ_ADD_PLUGIN_ALIAS(vrx::CustomThrusters, "vrx::CustomThrusters")
